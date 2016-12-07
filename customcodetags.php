@@ -72,7 +72,8 @@ function format_code($type, $content)
 	if ($type == "output" || $type == "error") {
 			$code_tag .= "<b>".ucfirst($type).":</b>";
 		}
-		$code_tag .= "<code class=\"".$type."\">";
+		
+	$code_tag .= "<code class=\"".$type."\">";
 
 	return $code_tag.$content."</code>";
 
