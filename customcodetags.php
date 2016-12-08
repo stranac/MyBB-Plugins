@@ -41,14 +41,14 @@ function parse_custom_tags($message)
 
 		else
 		{
-			if ($type == "") { // icode tag
+			if ($type == "") {
 				$type = "icode";
 				$content = $text[3];
 			}
 			else {
 				$content = $text[2];
 			}
-
+			
 			// escape brackets to avoid further parsing
 			$content = str_replace(array("[", "]", "<", ">"), array("&#91;","&#93;", "&lt;", "&gt;"), $content);
 			// horrible hack to avoid nl2br being executed on our code blocks
@@ -64,16 +64,16 @@ function parse_custom_tags($message)
 function format_code($type, $content)
 {
 	if ($type == "python") {
-		return "<b>Python Code:</b><pre class=\"brush: python\">".$content."</pre>";
+		return "<pre class=\"brush: python\" title=\"Python Code:\">".$content."</pre>";
 	}
 
-	$code_tag = "";
+	if ($type == "icode") {
+		$code_tag = "<code class=\"icode\">";
+	}
+	else {
+		$code_tag = "<code class=\"codeblock ".$type."\"><div class=\"title\">".ucfirst($type).":</div>";
+	}
 
-	if ($type == "output" || $type == "error") {
-			$code_tag .= "<b>".ucfirst($type).":</b>";
-		}
-		
-	$code_tag .= "<code class=\"".$type."\">";
 
 	return $code_tag.$content."</code>";
 
