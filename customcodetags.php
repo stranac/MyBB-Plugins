@@ -25,7 +25,6 @@ $plugins->add_hook("parse_message_end", "fix_newlines");
 
 function parse_custom_tags($message)
 {
-	global $custom_code_matches;
 	$pattern = "#\[(code|php|python|output|error)\](.*?)\[/\\1\]|\[icode\]([^\n]*?)\[/icode\]#si";
 
 	preg_match_all($pattern, $message, $custom_code_matches, PREG_SET_ORDER);
