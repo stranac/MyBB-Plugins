@@ -13,49 +13,67 @@ function customcodetags_info()
 		"name"			=> "Custom Code Tags",
 		"description"	=> "Adds custom MyCode for python code, output, errors and inline code",
 		"author"		=> "stranac",
-		"version"		=> "1.0",
+		"version"		=> "1.1",
 		"codename"		=> "customcodename",
 		"compatibility" => "18*"
 	);
 }
 
-$plugins->add_hook("parse_message_start", "parse_custom_tags");
-$plugins->add_hook("parse_message_end", "fix_newlines");
+$plugins->add_hook("parse_message_start", "find_custom_tags");
+$plugins->add_hook("parse_message_end", "replace_custom_tags");
 
 
-function parse_custom_tags($message)
+function find_custom_tags($message)
 {
-	$pattern = "#\[(code|php|python|output|error)\](.*?)\[/\\1\]|\[icode\]([^\n]*?)\[/icode\]#si";
+	global $custom_code_matches, $parser, $mybb;
 
-	preg_match_all($pattern, $message, $custom_code_matches, PREG_SET_ORDER);
-	$message = preg_replace($pattern, "<mybb-code>\n", $message);
+	// if MyCode needs to be replaced, filter out all code tags.
+	if(!empty($parser->options['allow_mycode']) && $mybb->settings['allowcodemycode'] == 1) {
+		$pattern = "#\[(code|php|python|output|error)\](.*?)\[/\\1\]|\[icode\]([^\n]*?)\[/icode\]|`([^\n]*?)`#si";
 
-	foreach ($custom_code_matches as $text) {
-		$type = my_strtolower($text[1]);
+		preg_match_all($pattern, $message, $custom_code_matches, PREG_SET_ORDER);
+		$message = preg_replace($pattern, "<custom-code-tags-plugin>", $message);
+	}
 
-		// let mybb handle code and php tags
-		if (($type == "code") || ($type == "php")) {
-			$message = preg_replace("#<mybb-code>\n#", $text[0], $message, 1);
-		}
+	return $message;
+}
 
-		else
-		{
-			if ($type == "") {
-				$type = "icode";
-				$content = $text[3];
+
+function replace_custom_tags($message) {
+	global $custom_code_matches, $parser;
+
+	if(!empty($parser->options['allow_mycode'])) {
+		// if we split up any code tags, parse them and glue it all back together
+		if(count($custom_code_matches) > 0) {
+
+			foreach($custom_code_matches as $match) {
+				$type = my_strtolower($match[1]);
+				$content = my_strtolower($match[2]);
+
+				if ($type == "") { // icode and ` matched by separate regex, so details need to be corrected
+					$type = "icode";
+					$content = ($match[3] != "") ? $match[3] : $match[4];
+				}
+
+				if($type == "code") {
+					// Fix up HTML inside the code tags so it is clean
+					$content = $parser->parse_html($content);
+
+					$code = $parser->mycode_parse_code($content);
+				}
+				elseif($type == "php") {
+					$code = $parser->mycode_parse_php($content);
+				}
+				else {
+					$content = $parser->parse_html($content);
+					$code = format_code($type, $content);
+				}
+
+				$message = preg_replace("#\<custom-code-tags-plugin>\n?#", $code, $message, 1);
 			}
-			else {
-				$content = $text[2];
-			}
-			
-			// escape brackets to avoid further parsing
-			$content = str_replace(array("[", "]", "<", ">"), array("&#91;","&#93;", "&lt;", "&gt;"), $content);
-			// horrible hack to avoid nl2br being executed on our code blocks
-			$content = str_replace("\n", "<newline>", $content);
-
-			$message = preg_replace("#<mybb-code>\n#", format_code($type, $content), $message, 1);
 		}
 	}
+	
 	return $message;
 }
 
@@ -73,13 +91,6 @@ function format_code($type, $content)
 		$code_tag = "<code class=\"codeblock ".$type."\"><div class=\"title\">".ucfirst($type).":</div>";
 	}
 
-
 	return $code_tag.$content."</code>";
 
-}
-
-
-function fix_newlines($message) {
-	// get our newlines back
-	return str_replace("<newline>", "\n", $message);
 }
