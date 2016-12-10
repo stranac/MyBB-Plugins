@@ -27,12 +27,15 @@ function find_custom_tags($message)
 {
 	global $custom_code_matches, $parser, $mybb;
 
+	// to quote class_parser.php: "Get rid of carriage returns for they are the workings of the devil"
+	$message = str_replace("\r", "", $message);
+
 	// if MyCode needs to be replaced, filter out all code tags.
-	if(!empty($parser->options['allow_mycode']) && $mybb->settings['allowcodemycode'] == 1) {
-		$pattern = "#\[(code|php|python|output|error)\](.*?)\[/\\1\]|\[icode\]([^\n]*?)\[/icode\]|`([^\n]*?)`#si";
+	if(!empty($parser->options['allow_mycode'])) {
+		$pattern = "#\[(code|php|python|output|error)\](.*?)\[/\\1\]\n*|\[icode\]([^\n]*?)\[/icode\]|`([^\n]*?)`#si";
 
 		preg_match_all($pattern, $message, $custom_code_matches, PREG_SET_ORDER);
-		$message = preg_replace($pattern, "<custom-code-tags-plugin>", $message);
+		$message = preg_replace($pattern, "---custom-code-tags-plugin---", $message);
 	}
 
 	return $message;
@@ -55,21 +58,10 @@ function replace_custom_tags($message) {
 					$content = ($match[3] != "") ? $match[3] : $match[4];
 				}
 
-				if($type == "code") {
-					// Fix up HTML inside the code tags so it is clean
-					$content = $parser->parse_html($content);
+				$content = $parser->parse_html($content);
+				$code = format_code($type, $content);
 
-					$code = $parser->mycode_parse_code($content);
-				}
-				elseif($type == "php") {
-					$code = $parser->mycode_parse_php($content);
-				}
-				else {
-					$content = $parser->parse_html($content);
-					$code = format_code($type, $content);
-				}
-
-				$message = preg_replace("#\<custom-code-tags-plugin>\n?#", $code, $message, 1);
+				$message = preg_replace("#---custom-code-tags-plugin---\n?#", $code, $message, 1);
 			}
 		}
 	}
@@ -80,17 +72,16 @@ function replace_custom_tags($message) {
 
 function format_code($type, $content)
 {
-	if ($type == "python") {
+	// hijack [code] and [php] tags
+	if (in_array($type, ["python", "code", "php"])) {
 		return "<pre class=\"brush: python\" title=\"Python Code:\">".$content."</pre>";
 	}
-
-	if ($type == "icode") {
-		$code_tag = "<code class=\"icode\">";
+	// inline code
+	elseif ($type == "icode") {
+		return "<code class=\"icode\">".$content."</code>";
 	}
+	// [error] and [output] tags
 	else {
-		$code_tag = "<code class=\"codeblock ".$type."\"><div class=\"title\">".ucfirst($type).":</div>";
+		return "<pre><code class=\"codeblock ".$type."\"><div class=\"title\">".ucfirst($type).":</div>".$content."</code></pre>";
 	}
-
-	return $code_tag.$content."</code>";
-
 }
