@@ -51,7 +51,7 @@ function replace_custom_tags($message) {
 
 			foreach($custom_code_matches as $match) {
 				$type = my_strtolower($match[1]);
-				$content = my_strtolower($match[2]);
+				$content = $match[2];
 
 				if ($type == "") { // icode and ` matched by separate regex, so details need to be corrected
 					$type = "icode";
